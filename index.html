@@ -157,10 +157,13 @@ let i=0,total=0,tiers=[],busy=true,tm=null,deadline=0,expired=false,hist=[],msgT
 function buildTrack(){$("track").innerHTML='<span class="horse" id="h0">🐎</span>';resetTrack();}
 // ---- Pistes i decorats: en completar una pista (TRACK punts) canvia l’escenari i el cavall continua
 // occ: capa amb els pals dels fanals, que passa per davant del cavall (corre davant de la tanca i darrere dels pals)
-const SCENES=[{img:"stage.webp",top:20.5,left:6,width:88},{img:"stage2.webp",occ:"occ2.webp",top:22.1,left:-5,width:105}];
+// holes: forats de cada decorat (només cal si difereixen dels de HL); miss: [y on arriba la bola fallida, y on desapareix]
+const HL3={4:[[512,790,66,32]],3:[[428,846,68,35],[595,846,68,35]],2:[[342,923,74,40],[511,923,74,40],[680,923,74,40]],1:[[239,1016,78,46],[419,1016,78,46],[604,1016,78,46],[784,1016,78,46]]};
+const SCENES=[{img:"stage.webp",top:20.5,left:6,width:88},{img:"stage2.webp",occ:"occ2.webp",top:22.1,left:-5,width:105},{img:"stage3.webp",top:32.3,left:3,width:94,holes:HL3,miss:[754,736]}];
 SCENES.forEach(s=>{for(const u of [s.img,s.occ]){if(u){const im=new Image();im.src=u;}}});
 let shown=0,lap=0,gen=0,chain=Promise.resolve();
-function setScene(k){const c=SCENES[k%SCENES.length],t=$("track");$("stage").style.backgroundImage=`url(${c.img})`;$("occ").style.backgroundImage=c.occ?`url(${c.occ})`:"none";t.style.top=c.top+"%";t.style.left=c.left+"%";t.style.width=c.width+"%";}
+let cur=0;
+function setScene(k){cur=k%SCENES.length;const c=SCENES[cur],t=$("track");$("stage").style.backgroundImage=`url(${c.img})`;$("occ").style.backgroundImage=c.occ?`url(${c.occ})`:"none";t.style.top=c.top+"%";t.style.left=c.left+"%";t.style.width=c.width+"%";}
 function placeHorse(p,sec){const h=$("h0");h.style.transition=sec?`left ${sec}s ease-in-out`:"none";h.style.left=`calc((100% - 9cqw) * ${p})`;}
 async function trot(p0,p1){   // trota de p0 a p1 (0..1); com més lluny, més triga
   const h=$("h0"),d=p1-p0;if(d<=0)return;
@@ -240,8 +243,8 @@ async function throwBall(h,tier){
     shake(f.amp,f.ms);light(h,f);                                                 // pam!
     await banner(T[tier][0].toUpperCase(),`+${T[tier][1]} PUNTS`,T[tier][2],f.hold);
   }else{ // tirada fallida: vola per sobre dels forats i cau pel fons de la pista
-    const x=470+Math.random()*90;
-    await fly(S,[(S[0]+x)/2,300],[x,690],2000);await shrink(x,672,300);
+    const x=470+Math.random()*90,ms=SCENES[cur].miss||[690,672];
+    await fly(S,[(S[0]+x)/2,300],[x,ms[0]],2000);await shrink(x,ms[1],300);
   }
   b.setAttribute("opacity",0);
 }
@@ -267,7 +270,7 @@ function show(){
 async function finish(tier,word,msg){
   clearTimeout(msgT);
   ["a","go","skip"].forEach(id=>{$(id).disabled=true;});
-  const hs=tier?HL[tier]:null,h=hs?hs[Math.floor(Math.random()*hs.length)]:null;
+  const hs=tier?(SCENES[cur].holes||HL)[tier]:null,h=hs?hs[Math.floor(Math.random()*hs.length)]:null;
   await throwBall(h,tier);
   const m=tier?T[tier][1]:0;total+=m;tiers.push(tier);hist.push({q:Q[i],word,tier,m,msg});
   moveHorses();$("sc").textContent=total;
