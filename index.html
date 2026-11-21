@@ -25,6 +25,9 @@ html,body{margin:0;background:#07101a;color:var(--ink);font:16px/1.35 system-ui,
 #track{left:6%;top:20.5%;width:88%;height:9%}
 .horse{position:absolute;left:0;bottom:0;font-size:9cqw;line-height:1;transform:scaleX(-1);transition:left .9s ease;filter:drop-shadow(.4cqw .4cqw 0 rgba(0,0,0,.55))}
 .horse.trot{animation:trot .26s ease-in-out infinite}
+/* Casc d’astronauta (últim decorat): cúpula de vidre sobre el cap del cavall; si no encaixa en algun dispositiu, es retoca amb left/top/width/height */
+.horse .helm{display:none;position:absolute;left:-.02em;top:-.04em;width:.5em;height:.5em;border-radius:50%;border:.045em solid #e8eef8;box-sizing:border-box;background:radial-gradient(circle at 62% 30%,rgba(255,255,255,.85) 0 12%,rgba(160,215,255,.38) 40%,rgba(70,120,190,.28));box-shadow:inset -.03em -.03em .06em rgba(20,40,90,.45)}
+.horse.astro .helm{display:block}
 @keyframes trot{0%,100%{transform:scaleX(-1) translateY(0) rotate(0)}50%{transform:scaleX(-1) translateY(-1.3cqw) rotate(-5deg)}}
 .flag{position:absolute;right:0;bottom:0;font-size:7cqw;line-height:1;filter:drop-shadow(.4cqw .4cqw 0 rgba(0,0,0,.55))}
 #fx{left:0;top:0;width:100%;height:100%;pointer-events:none}
@@ -197,22 +200,22 @@ function rng(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t
 function pick(seed,n=7){const r=rng(seed),a=POOL.map((_,k)=>k);for(let k=a.length-1;k>0;k--){const j=Math.floor(r()*(k+1));[a[k],a[j]]=[a[j],a[k]];}return a.slice(0,n).map(k=>POOL[k]);}
 const dayseed=()=>{const d=new Date();return d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate();};
 let Q=pick(Math.floor(Math.random()*4294967296));   // 7 preguntes a l’atzar a cada partida
-const TRACK=100;   // punts per completar una pista
+const TRACK=175;   // punts per completar una pista (4 pistes × 175 = 700 = 7 respostes Rarèndic: la partida perfecta acaba a la meta de l’últim decorat)
 
 const LIMIT=30,RM=matchMedia("(prefers-reduced-motion:reduce)").matches;
 let i=0,total=0,tiers=[],busy=true,tm=null,deadline=0,expired=false,hist=[],msgT=null;
 
 // ---- Cavall
-function buildTrack(){$("track").innerHTML='<span class="horse" id="h0">🐎</span>';resetTrack();}
+function buildTrack(){$("track").innerHTML='<span class="horse" id="h0">🐎<i class="helm"></i></span>';resetTrack();}
 // ---- Pistes i decorats: en completar una pista (TRACK punts) canvia l’escenari i el cavall continua
 // occ: capa amb els pals dels fanals, que passa per davant del cavall (corre davant de la tanca i darrere dels pals)
 // holes: forats de cada decorat (només cal si difereixen dels de HL); miss: [y on arriba la bola fallida, y on desapareix]
 const HL3={4:[[512,790,66,32]],3:[[428,846,68,35],[595,846,68,35]],2:[[342,923,74,40],[511,923,74,40],[680,923,74,40]],1:[[239,1016,78,46],[419,1016,78,46],[604,1016,78,46],[784,1016,78,46]]};
-const SCENES=[{img:"stage.webp",top:20.5,left:6,width:88},{img:"stage2.webp",occ:"occ2.webp",top:22.1,left:-5,width:105},{img:"stage3.webp",top:32.3,left:3,width:94,holes:HL3,miss:[754,736]}];
+const SCENES=[{img:"stage.webp",top:20.5,left:6,width:88},{img:"stage2.webp",occ:"occ2.webp",top:22.1,left:-5,width:105},{img:"stage3.webp",top:32.3,left:3,width:94,holes:HL3,miss:[754,736]},{img:"stage4.webp",top:32.3,left:3,width:94,holes:HL3,miss:[754,736],astro:true}];   // astro: el cavall duu casc d’astronauta
 SCENES.forEach(s=>{for(const u of [s.img,s.occ]){if(u){const im=new Image();im.src=u;}}});
 let shown=0,lap=0,gen=0,chain=Promise.resolve();
 let cur=0;
-function setScene(k){cur=k%SCENES.length;const c=SCENES[cur],t=$("track");$("stage").style.backgroundImage=`url(${c.img})`;$("occ").style.backgroundImage=c.occ?`url(${c.occ})`:"none";t.style.top=c.top+"%";t.style.left=c.left+"%";t.style.width=c.width+"%";}
+function setScene(k){cur=k%SCENES.length;const c=SCENES[cur],t=$("track");$("h0").classList.toggle("astro",!!c.astro);$("stage").style.backgroundImage=`url(${c.img})`;$("occ").style.backgroundImage=c.occ?`url(${c.occ})`:"none";t.style.top=c.top+"%";t.style.left=c.left+"%";t.style.width=c.width+"%";}
 function placeHorse(p,sec){const h=$("h0");h.style.transition=sec?`left ${sec}s ease-in-out`:"none";h.style.left=`calc((100% - 9cqw) * ${p})`;}
 async function trot(p0,p1){   // trota de p0 a p1 (0..1); com més lluny, més triga
   const h=$("h0"),d=p1-p0;if(d<=0)return;
@@ -228,6 +231,7 @@ async function newTrack(g){   // meta: el cavall s’atura, tot tremola i llavor
     await sleep(1000);
   }
   if(g!==gen)return;
+  if(lap+1>=SCENES.length){lap++;return;}   // meta de l’últim decorat: el cavall es queda a la línia d’arribada
   if(!RM){const e=$("flash");e.style.background="#fff";e.animate([{opacity:0},{opacity:1,offset:.45},{opacity:0}],{duration:1000});await sleep(450);}
   lap++;setScene(lap);placeHorse(0,0);
   if(!RM)await sleep(550);
